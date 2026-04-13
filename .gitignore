@@ -1,0 +1,23 @@
+# Arquivos de sistema
+.DS_Store
+Thumbs.db
+
+# IDEs
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Logs
+*.log
+logs/
+
+# Arquivos temporários
+*.tmp
+*.temp
+.ftp-deploy-sync-state.json
+
+# Credenciais (nunca commitar!)
+.env
+*.env
+credentials.txt
