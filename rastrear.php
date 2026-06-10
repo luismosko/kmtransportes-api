@@ -36,6 +36,16 @@ if ($_POST["client_type"] == 'trackingdest' && $client_doc_type == "cpf") {
     $method = 'trackingpf';
 }
 
+// Adiciona senha para trackingdest/trackingpf antes de mostrar debug
+$debugData = $data;
+if ($method == 'trackingdest' || $method == 'trackingpf') {
+    $debugData['senha'] = '030117';
+}
+if ($method == 'tracking') {
+    $debugData['dominio'] = 'KMT';
+    $debugData['usuario'] = 'sitekm';
+}
+
 $ssw = new Ssw;
 $result = $ssw->$method($data);
 
@@ -46,8 +56,9 @@ echo "<pre>";
 echo "Método: $method\n";
 echo "Tipo documento: $client_doc_type\n";
 echo "Documento: $client_doc\n";
-echo "\nDados enviados:\n";
-print_r($data);
+echo "\nDados enviados (com parâmetros adicionados pelo método):\n";
+print_r($debugData);
+echo "\nJSON enviado: " . json_encode($debugData) . "\n";
 echo "\nResposta da API:\n";
 print_r($result);
 echo "</pre>";

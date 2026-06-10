@@ -143,25 +143,40 @@ class Ssw
     
     // v1.1.0 - Método que não adiciona parâmetros automaticamente
     // Cada método de tracking define seus próprios parâmetros
+    // CORREÇÃO: Enviando como JSON conforme documentação SSW
     public function postRaw($method, $data)
     {
         $url = $this->url . $method;
         $curl = curl_init();
+        
+        // Converte para JSON
+        $jsonData = json_encode($data);
 
         curl_setopt_array($curl, [
             CURLOPT_RETURNTRANSFER => 1,
             CURLOPT_URL => $url,
             CURLOPT_POST => 1,
-            CURLOPT_POSTFIELDS => $data
+            CURLOPT_POSTFIELDS => $jsonData,
+            CURLOPT_HTTPHEADER => [
+                'Content-Type: application/json',
+                'Content-Length: ' . strlen($jsonData)
+            ]
         ]);
         $response = curl_exec($curl);
         curl_close($curl);
         
-        // Tenta parsear como XML, se falhar retorna objeto de erro
+        // Tenta parsear como XML, se falhar tenta JSON, se falhar retorna objeto de erro
         $xml = @simplexml_load_string($response);
-        if ($xml === false) {
-            return (object)['success' => 'false', 'error' => 'Resposta inválida da API'];
+        if ($xml !== false) {
+            return $xml;
         }
-        return $xml;
+        
+        // Tenta JSON
+        $json = @json_decode($response);
+        if ($json !== null) {
+            return $json;
+        }
+        
+        return (object)['success' => 'false', 'message' => 'Resposta inválida da API: ' . substr($response, 0, 200)];
     }
 }
