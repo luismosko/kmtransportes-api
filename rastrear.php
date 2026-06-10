@@ -16,7 +16,11 @@ if (empty($client_doc_type)) {
 
 // Define o parâmetro correto para a API
 $data[$client_doc_type] = $client_doc;
-$data["sigla_emp"] = $_POST["sigla_emp"];
+
+// sigla_emp só é usado para tracking (remetente), não para trackingdest
+if ($_POST["client_type"] == 'tracking') {
+    $data["sigla_emp"] = $_POST["sigla_emp"];
+}
 
 // Adiciona documento de rastreio se informado
 if (!empty($_POST["track_doc_type"]) && !empty($_POST["track_doc"])) {
