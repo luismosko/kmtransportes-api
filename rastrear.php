@@ -36,38 +36,13 @@ if ($_POST["client_type"] == 'trackingdest' && $client_doc_type == "cpf") {
     $method = 'trackingpf';
 }
 
-// Adiciona parâmetros extras para debug conforme cada método
-$debugData = $data;
-if ($method == 'trackingpf') {
-    $debugData['dominio'] = 'KMT';
-    $debugData['usuario'] = 'sitekm';
-    $debugData['senha'] = '030117';
-}
-if ($method == 'tracking') {
-    $debugData['dominio'] = 'KMT';
-    $debugData['usuario'] = 'sitekm';
-}
-// trackingdest não adiciona nada extra (senha é opcional)
-
 $ssw = new Ssw;
 $result = $ssw->$method($data);
 
-// DEBUG TEMPORÁRIO - Ver o que está sendo enviado e retornado
-echo "<div style='background:#ffe0e0;padding:15px;margin:15px;border:2px solid red;'>";
-echo "<h4>🔍 DEBUG - Dados da requisição:</h4>";
-echo "<pre>";
-echo "Método: $method\n";
-echo "Tipo documento: $client_doc_type\n";
-echo "Documento: $client_doc\n";
-echo "\nDados enviados (com parâmetros adicionados pelo método):\n";
-print_r($debugData);
-echo "\nJSON enviado: " . json_encode($debugData) . "\n";
-echo "\nResposta da API:\n";
-print_r($result);
-echo "</pre>";
-echo "</div>";
+// Verifica sucesso - suporta tanto "true" (string) quanto 1 (int)
+$isSuccess = ($result->success === true || $result->success === "true" || $result->success == 1);
 
-$title = ($result->success == "true") ? "Confira abaixo o rastreamento de sua encomenda" : "Não conseguimos rastrear sua encomentada";
+$title = $isSuccess ? "Confira abaixo o rastreamento de sua encomenda" : "Não conseguimos rastrear sua encomendada";
 
 $doc_types = [
     "nro_nf" => "Número da Nota Fiscal",
@@ -81,7 +56,42 @@ $doc_types = [
 
 <div class="panel panel-default shadow-sm p-3 mb-5 bg-white rounded">
     <div class="panel-body">
-        <?php if ($result->success == "true") { ?>
+        <?php if ($isSuccess && isset($result->tracking)) { ?>
+            
+            <?php if (isset($result->header)) { ?>
+            <div class="alert alert-info mb-4">
+                <div class="row">
+                    <div class="col-md-6"><b>Remetente:</b> <?= $result->header->remetente ?? '-' ?></div>
+                    <div class="col-md-6"><b>Destinatário:</b> <?= $result->header->destinatario ?? '-' ?></div>
+                </div>
+            </div>
+            <?php } ?>
+            
+            <ul class="list-group mb-4">
+                <li class="list-group-item active">
+                    <div class="row">
+                        <div class="col-md-12"><b>Histórico de Rastreamento</b></div>
+                    </div>
+                </li>
+
+                <?php foreach ($result->tracking as $ocorrencia) { ?>
+                    <li class="list-group-item">
+                        <div class="row">
+                            <div class="col-md-3">
+                                <b><?= date('d/m/Y H:i', strtotime($ocorrencia->data_hora)) ?></b>
+                                <br><small class="text-muted"><?= $ocorrencia->cidade ?? '' ?></small>
+                            </div>
+                            <div class="col-md-9">
+                                <strong class="text-primary"><?= $ocorrencia->ocorrencia ?? '' ?></strong>
+                                <br><?= $ocorrencia->descricao ?? '' ?>
+                            </div>
+                        </div>
+                    </li>
+                <?php } ?>
+            </ul>
+            
+        <?php } elseif ($isSuccess && isset($result->documento)) { ?>
+            <!-- Formato XML antigo -->
             <?php foreach ($result->documento as $documento) { ?>
                 <ul class="list-group mb-4">
                     <li class="list-group-item active">
