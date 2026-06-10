@@ -1,0 +1,92 @@
+<?php 
+// v1.1.0 - Correção bug rastreamento - parâmetros da API SSW
+// Backup: branch backup-v1.0.0
+include 'header.inc.php';
+
+$data = [];
+
+// Limpa o documento (remove formatação)
+$client_doc = str_replace(["/", "-", "."], "", $_POST["client_doc"]);
+
+// Detecta tipo do documento se não veio preenchido
+$client_doc_type = $_POST["client_doc_type"];
+if (empty($client_doc_type)) {
+    $client_doc_type = (strlen($client_doc) <= 11) ? 'cpf' : 'cnpj';
+}
+
+// Define o parâmetro correto para a API
+$data[$client_doc_type] = $client_doc;
+$data["sigla_emp"] = $_POST["sigla_emp"];
+
+// Adiciona documento de rastreio se informado
+if (!empty($_POST["track_doc_type"]) && !empty($_POST["track_doc"])) {
+    $data[$_POST["track_doc_type"]] = $_POST["track_doc"];
+}
+
+// Define método correto
+// trackingpf = destinatário pessoa física (CPF)
+// trackingdest = destinatário pessoa jurídica (CNPJ)  
+// tracking = remetente
+$method = $_POST["client_type"];
+if ($_POST["client_type"] == 'trackingdest' && $client_doc_type == "cpf") {
+    $method = 'trackingpf';
+}
+
+$ssw = new Ssw;
+$result = $ssw->$method($data);
+
+// Debug: descomente para ver o que está sendo enviado
+// echo "<pre>Método: $method\nDados enviados: " . print_r($data, true) . "\nResposta: " . print_r($result, true) . "</pre>";
+
+$title = ($result->success == "true") ? "Confira abaixo o rastreamento de sua encomenda" : "Não conseguimos rastrear sua encomentada";
+
+$doc_types = [
+    "nro_nf" => "Número da Nota Fiscal",
+    "pedido" => "Número do pedido",
+    "chave_nfe" => "Chave da Nota Fiscal Eletrônica",
+    "nro_coleta" => "Número da coleta",
+];
+?>
+
+<h3 class="mb-5"><?= $title ?></h3>
+
+<div class="panel panel-default shadow-sm p-3 mb-5 bg-white rounded">
+    <div class="panel-body">
+        <?php if ($result->success == "true") { ?>
+            <?php foreach ($result->documento as $documento) { ?>
+                <ul class="list-group mb-4">
+                    <li class="list-group-item active">
+                        <div class="row">
+                            <div class="col-md-6"><b>Número CTRC:</b> <?= $documento->ctrc ?></div>
+                            <div class="col-md-6"><b>Nota Fiscal:</b> <?= $documento->nf ?></div>
+                        </div>
+                    </li>
+
+                    <?php foreach ($documento->ocorrencia as $ocorrencia) { ?>
+                        <li class="list-group-item">
+                            <div class="row">
+                                <div class="col-md-3">
+                                    <b><?= $ocorrencia->dataHora ?></b>
+                                </div>
+                                <div class="col-md-9">
+                                    <?= $ocorrencia->descricao ?>
+                                </div>
+                            </div>
+                        </li>
+                    <?php } ?>
+                </ul>
+            <?php } ?>
+        <?php } else { ?>
+            <div class="alert alert-warning" role="alert">
+                Não encontramos encomendas com os dados fornecidos. Faça novamente sua pesquisa ou entre em contato.
+            </div>
+        <?php } ?>
+        <a href="rastreamento.php" class="btn btn-primary">Nova consulta</a>
+    </div>
+</div>
+<script>
+    $(document).ready(function() {
+        $('#nav-rastreamento').addClass('active');
+    });
+</script>
+<?php include 'footer.inc.php'; ?>
