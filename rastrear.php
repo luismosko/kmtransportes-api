@@ -35,8 +35,19 @@ if ($_POST["client_type"] == 'trackingdest' && $client_doc_type == "cpf") {
 $ssw = new Ssw;
 $result = $ssw->$method($data);
 
-// Debug: descomente para ver o que está sendo enviado
-// echo "<pre>Método: $method\nDados enviados: " . print_r($data, true) . "\nResposta: " . print_r($result, true) . "</pre>";
+// DEBUG TEMPORÁRIO - Ver o que está sendo enviado e retornado
+echo "<div style='background:#ffe0e0;padding:15px;margin:15px;border:2px solid red;'>";
+echo "<h4>🔍 DEBUG - Dados da requisição:</h4>";
+echo "<pre>";
+echo "Método: $method\n";
+echo "Tipo documento: $client_doc_type\n";
+echo "Documento: $client_doc\n";
+echo "\nDados enviados:\n";
+print_r($data);
+echo "\nResposta da API:\n";
+print_r($result);
+echo "</pre>";
+echo "</div>";
 
 $title = ($result->success == "true") ? "Confira abaixo o rastreamento de sua encomenda" : "Não conseguimos rastrear sua encomentada";
 
