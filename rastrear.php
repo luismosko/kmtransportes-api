@@ -36,15 +36,18 @@ if ($_POST["client_type"] == 'trackingdest' && $client_doc_type == "cpf") {
     $method = 'trackingpf';
 }
 
-// Adiciona senha para trackingdest/trackingpf antes de mostrar debug
+// Adiciona parâmetros extras para debug conforme cada método
 $debugData = $data;
-if ($method == 'trackingdest' || $method == 'trackingpf') {
+if ($method == 'trackingpf') {
+    $debugData['dominio'] = 'KMT';
+    $debugData['usuario'] = 'sitekm';
     $debugData['senha'] = '030117';
 }
 if ($method == 'tracking') {
     $debugData['dominio'] = 'KMT';
     $debugData['usuario'] = 'sitekm';
 }
+// trackingdest não adiciona nada extra (senha é opcional)
 
 $ssw = new Ssw;
 $result = $ssw->$method($data);

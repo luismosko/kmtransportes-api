@@ -96,9 +96,9 @@ class Ssw
 
     public function trackingdest($data)
     {
-        // trackingdest (destinatário CNPJ): cnpj + senha + filtro
+        // trackingdest (destinatário CNPJ): cnpj + filtro
+        // Senha é OPCIONAL conforme site SSW
         // NÃO usa dominio/usuario conforme documentação!
-        $data['senha'] = $this->password;
         return $this->postRaw('api/trackingdest', $data);
     }
 
