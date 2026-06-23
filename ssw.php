@@ -1,5 +1,5 @@
 <?php
-// v1.1.0 - Correção parâmetros API SSW conforme documentação
+// v1.2.0 - trackingdest filtra por dominio (evita exibir carga de outra transportadora SSW)
 // https://ssw.inf.br/ajuda/
 // Backup: branch backup-v1.0.0
 
@@ -97,8 +97,11 @@ class Ssw
     public function trackingdest($data)
     {
         // trackingdest (destinatário CNPJ): cnpj + filtro
-        // Senha é OPCIONAL conforme site SSW
-        // NÃO usa dominio/usuario conforme documentação!
+        // v1.2.0: adiciona dominio=KMT para retornar SÓ cargas da KM.
+        // Sem dominio, o endpoint é GLOBAL na rede SSW e devolve cargas de
+        // qualquer transportadora (ex: VCS/Cruzeiro) para o mesmo destinatário.
+        // Filtro confirmado seletivo via teste com a API.
+        $data['dominio'] = $this->domain;
         return $this->postRaw('api/trackingdest', $data);
     }
 
