@@ -1,5 +1,5 @@
 <?php
-// v1.2.0 - trackingdest filtra por dominio (evita exibir carga de outra transportadora SSW)
+// v1.3.0 - trackingdest filtra na RESPOSTA pelo dominio das ocorrencias (so cargas KM)
 // https://ssw.inf.br/ajuda/
 // Backup: branch backup-v1.0.0
 
@@ -97,12 +97,31 @@ class Ssw
     public function trackingdest($data)
     {
         // trackingdest (destinatário CNPJ): cnpj + filtro
-        // v1.2.0: adiciona dominio=KMT para retornar SÓ cargas da KM.
-        // Sem dominio, o endpoint é GLOBAL na rede SSW e devolve cargas de
-        // qualquer transportadora (ex: VCS/Cruzeiro) para o mesmo destinatário.
-        // Filtro confirmado seletivo via teste com a API.
-        $data['dominio'] = $this->domain;
-        return $this->postRaw('api/trackingdest', $data);
+        // ATENCAO: este endpoint e GLOBAL na rede SSW. Ele ignora o parametro
+        // 'dominio' no envio e retorna cargas de QUALQUER transportadora
+        // destinadas ao CNPJ consultado (confirmado em teste + doc SSW).
+        // v1.3.0: por isso filtramos na RESPOSTA. So exibimos a carga se houver
+        // ao menos uma ocorrencia do dominio da KM (KMT). Carga 100% de
+        // terceiros (ex: VCS/Cruzeiro) vira "nao localizado".
+        $result = $this->postRaw('api/trackingdest', $data);
+        return $this->filtrarPorDominio($result);
+    }
+
+    // Mantem a carga apenas se a KM (dominio proprio) tiver alguma ocorrencia
+    // registrada nela; nesse caso exibe a jornada completa (inclui trechos de
+    // parceiros em caso de redespacho). Sem nenhuma ocorrencia KMT -> trata
+    // como nao localizado, para nao exibir carga de outra transportadora SSW.
+    private function filtrarPorDominio($result)
+    {
+        if (!is_object($result) || empty($result->tracking) || !is_array($result->tracking)) {
+            return $result;
+        }
+        foreach ($result->tracking as $ocorrencia) {
+            if (isset($ocorrencia->dominio) && trim($ocorrencia->dominio) === $this->domain) {
+                return $result;
+            }
+        }
+        return (object)['success' => false, 'message' => 'Nenhum documento localizado'];
     }
 
     public function tracking($data)
