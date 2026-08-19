@@ -1,4 +1,7 @@
 <?php 
+// v1.2.0 - Erros exibidos NO PROPRIO CAMPO (borda vermelha + mensagem abaixo).
+//           Removido o aviso amarelo fixo do campo de data (dava a entender que
+//           qualquer erro do form era erro de horario).
 // v1.1.0 - Campos numericos deixam de bloquear submit silenciosamente (badInput) + erros inline
 // Default-deny: campos numericos aceitam SOMENTE digitos (e ponto/virgula nos decimais),
 // sanitizados no cliente (mascara) e no servidor (Ssw::coletar). Qualquer outro caractere e descartado.
@@ -26,7 +29,6 @@ $title = (!isset($title)) ? "Preencha o formulário para registrar seu pedido de
             <?php } ?>
             <form method="post" id="form-rastreio" action="coleta.php">
                 <input type='hidden' name="method" value="coletar">
-                <div id="erro-form" class="alert alert-danger d-none" role="alert"></div>
                 <div class="mb-3">
                     <label for="exampleInputEmail1" class="form-label"><b>CPF ou CNPJ do remetente:</b></label>
                     <input type="text" required="required" value="<?= $_POST["cnpjRemetente"] ?>" name="cnpjRemetente" class="form-control cpfcnpj">
@@ -63,9 +65,7 @@ $title = (!isset($title)) ? "Preencha o formulário para registrar seu pedido de
                 <div class="mb-3">
                     <label for="exampleInputEmail1" class="form-label"><b>Data e hora para realizar a coleta:</b></label>
                     <input type="text" required="required" value="<?= $_POST["limiteColeta"] ?>" name="limiteColeta" id="campoLimiteColeta" class="form-control datetime">
-                    <div class="alert alert-warning mt-2 py-2 xsmall mb-0" role="alert">
-                        ⚠️ <strong>Atenção:</strong> Revise a data e hora de coleta. Prazo mínimo de 1 hora de antecedência.
-                    </div>
+                    <div class="form-text">Prazo mínimo de 1 hora de antecedência.</div>
                 </div>
                 <div class="mb-3 mt-3">
                     <label class="form-label"><b>Observação sobre a coleta:</b></label>
@@ -131,23 +131,27 @@ $title = (!isset($title)) ? "Preencha o formulário para registrar seu pedido de
         });
 
         // ========================================
-        // ERRO INLINE (substitui alert e da feedback visivel)
+        // ERRO POR CAMPO (borda vermelha + mensagem logo abaixo do campo)
+        // Cada erro aponta exatamente o campo que causou o problema.
         // ========================================
-        function mostrarErro(msg, $campo) {
-            $('#erro-form').html(msg).removeClass('d-none');
-            if ($campo && $campo.length) {
-                $campo.focus();
-                $('html, body').animate({ scrollTop: $('#erro-form').offset().top - 120 }, 200);
-            } else {
-                $('html, body').animate({ scrollTop: $('#erro-form').offset().top - 120 }, 200);
-            }
+        function mostrarErro($campo, msg) {
+            limparErro();
+            if (!$campo || !$campo.length) return;
+            $campo.addClass('is-invalid');
+            $campo.closest('.mb-3').append('<div class="invalid-feedback d-block erro-campo">' + msg + '</div>');
+            $('html, body').animate({ scrollTop: $campo.offset().top - 140 }, 200);
+            // Nao focar o campo de data: o datetimepicker abriria por cima da mensagem
+            if (!$campo.hasClass('datetime')) $campo.trigger('focus');
         }
         function limparErro() {
-            $('#erro-form').addClass('d-none').html('');
+            $('.erro-campo').remove();
+            $('#form-rastreio .is-invalid').removeClass('is-invalid');
         }
         // Somente no evento 'input' (digitacao). Nao usar 'change': o datetimepicker
         // dispara change ao selecionar e apagaria a mensagem de erro recem-exibida.
-        $(document).on('input', '#form-rastreio input', limparErro);
+        $(document).on('input', '#form-rastreio input', function() {
+            $(this).removeClass('is-invalid').closest('.mb-3').find('.erro-campo').remove();
+        });
         
         // ========================================
         // VALIDAÇÃO: Mínimo 1 hora de antecedência
@@ -203,7 +207,7 @@ $title = (!isset($title)) ? "Preencha o formulário para registrar seu pedido de
             const minimo = getHorarioMinimo();
             
             if (dataSelecionada && dataSelecionada < minimo) {
-                mostrarErro('<b>Horário inválido.</b> A coleta precisa de no mínimo 1 hora de antecedência. Horário mínimo permitido: <b>' +
+                mostrarErro($('#campoLimiteColeta'), 'Horário inválido: a coleta precisa de no mínimo 1 hora de antecedência. Mínimo permitido: <b>' +
                     minimo.toLocaleString('pt-BR', {day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'}) + '</b>');
 
                 if ($input) {
@@ -235,7 +239,7 @@ $title = (!isset($title)) ? "Preencha o formulário para registrar seu pedido de
 
             if (!valor) {
                 e.preventDefault();
-                mostrarErro('<b>Preencha a data e hora</b> para realizar a coleta.', $('#campoLimiteColeta'));
+                mostrarErro($('#campoLimiteColeta'), 'Preencha a data e hora para realizar a coleta.');
                 return false;
             }
             
@@ -244,16 +248,15 @@ $title = (!isset($title)) ? "Preencha o formulário para registrar seu pedido de
             
             if (!dataSelecionada) {
                 e.preventDefault();
-                mostrarErro('<b>Formato de data/hora inválido.</b> Use o formato DD/MM/AAAA HH:MM.', $('#campoLimiteColeta'));
+                mostrarErro($('#campoLimiteColeta'), 'Formato inválido. Use DD/MM/AAAA HH:MM.');
                 return false;
             }
             
             if (dataSelecionada < minimo) {
                 e.preventDefault();
-                mostrarErro('<b>Horário inválido.</b> A coleta precisa de no mínimo 1 hora de antecedência. Horário mínimo permitido: <b>' +
+                mostrarErro($('#campoLimiteColeta'), 'Horário inválido: a coleta precisa de no mínimo 1 hora de antecedência. Mínimo permitido: <b>' +
                     minimo.toLocaleString('pt-BR', {day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'}) + '</b>');
                 $('#campoLimiteColeta').val('');
-                $('#campoLimiteColeta').focus();
                 return false;
             }
 
@@ -264,14 +267,14 @@ $title = (!isset($title)) ? "Preencha o formulário para registrar seu pedido de
             var qtd = parseInt($('#campoQuantidade').val(), 10);
             if (!qtd || qtd <= 0) {
                 e.preventDefault();
-                mostrarErro('<b>Informe a quantidade de volumes</b> (apenas números, maior que zero).', $('#campoQuantidade'));
+                mostrarErro($('#campoQuantidade'), 'Informe a quantidade de volumes (apenas números, maior que zero).');
                 return false;
             }
 
             var peso = parseFloat($('#campoPeso').val());
             if (!peso || peso <= 0) {
                 e.preventDefault();
-                mostrarErro('<b>Informe o peso em Kg</b> (apenas números, use ponto ou vírgula para decimais).', $('#campoPeso'));
+                mostrarErro($('#campoPeso'), 'Informe o peso em Kg (apenas números, use ponto ou vírgula para decimais).');
                 return false;
             }
 
