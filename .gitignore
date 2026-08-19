@@ -21,3 +21,7 @@ logs/
 .env
 *.env
 credentials.txt
+
+logs.zip
+logs/
+_maint_*.php
