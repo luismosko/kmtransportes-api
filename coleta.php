@@ -1,5 +1,7 @@
 <?php 
-// v1.0.1 - Correção validação horário mínimo 1h antecedência
+// v1.1.0 - Campos numericos deixam de bloquear submit silenciosamente (badInput) + erros inline
+// Default-deny: campos numericos aceitam SOMENTE digitos (e ponto/virgula nos decimais),
+// sanitizados no cliente (mascara) e no servidor (Ssw::coletar). Qualquer outro caractere e descartado.
 include 'header.inc.php';
 
 $erro = false;
@@ -24,6 +26,7 @@ $title = (!isset($title)) ? "Preencha o formulário para registrar seu pedido de
             <?php } ?>
             <form method="post" id="form-rastreio" action="coleta.php">
                 <input type='hidden' name="method" value="coletar">
+                <div id="erro-form" class="alert alert-danger d-none" role="alert"></div>
                 <div class="mb-3">
                     <label for="exampleInputEmail1" class="form-label"><b>CPF ou CNPJ do remetente:</b></label>
                     <input type="text" required="required" value="<?= $_POST["cnpjRemetente"] ?>" name="cnpjRemetente" class="form-control cpfcnpj">
@@ -35,7 +38,7 @@ $title = (!isset($title)) ? "Preencha o formulário para registrar seu pedido de
 
                 <div class="mb-3">
                     <label for="exampleInputEmail1" class="form-label">Número da NF a ser coletada:</label>
-                    <input type="number" name="numeroNF" value="<?= $_POST["numeroNF"] ?>" class="form-control">
+                    <input type="text" inputmode="numeric" name="numeroNF" value="<?= $_POST["numeroNF"] ?>" class="form-control num-int">
                 </div>
                 <div class="mb-3">
                     <label for="exampleInputEmail1" class="form-label"><b>Pagamento:</b></label>
@@ -70,11 +73,11 @@ $title = (!isset($title)) ? "Preencha o formulário para registrar seu pedido de
                 </div>
                 <div class="mb-3">
                     <label for="exampleInputEmail1" class="form-label"><b>Quantidade de volumes a serem coletados:</b></label>
-                    <input type="number" required="required" value="<?= $_POST["quantidade"] ?>" name="quantidade" class="form-control">
+                    <input type="text" inputmode="numeric" required="required" value="<?= $_POST["quantidade"] ?>" name="quantidade" id="campoQuantidade" class="form-control num-int">
                 </div>
                 <div class="mb-3">
                     <label for="exampleInputEmail1" class="form-label"><b>Peso em Kg da carga:</b></label>
-                    <input type="number" step="0.001" required="required" value="<?= $_POST["peso"] ?>" name="peso" class="form-control">
+                    <input type="text" inputmode="decimal" required="required" value="<?= $_POST["peso"] ?>" name="peso" id="campoPeso" class="form-control num-dec">
                 </div>
                 <div class="mb-3">
                     <label for="exampleInputEmail1" class="form-label">Observações para a coleta:</label>
@@ -86,7 +89,7 @@ $title = (!isset($title)) ? "Preencha o formulário para registrar seu pedido de
                 </div>
                 <div class="mb-3">
                     <label for="exampleInputEmail1" class="form-label">Cubagem em m3:</label>
-                    <input type="number" step="0.0001" name="cubagem" value="<?= $_POST["cubagem"] ?>" class="form-control">
+                    <input type="text" inputmode="decimal" name="cubagem" value="<?= $_POST["cubagem"] ?>" id="campoCubagem" class="form-control num-dec">
                 </div>
                 <button type="submit" class="btn btn-primary">Solicitar</button>
             </form>
@@ -102,6 +105,49 @@ $title = (!isset($title)) ? "Preencha o formulário para registrar seu pedido de
 <script>
     $(document).ready(function() {
         $('#nav-coleta').addClass('active');
+
+        // ========================================
+        // MASCARA NUMERICA (allowlist de caracteres)
+        // Evita que o navegador bloqueie o submit sem mensagem (badInput
+        // em input[type=number] quando o usuario digita texto, ex: "nao")
+        // ========================================
+        function limparNumero(valor, aceitaDecimal) {
+            var v = String(valor || '').replace(',', '.');
+            v = aceitaDecimal ? v.replace(/[^0-9.]/g, '') : v.replace(/[^0-9]/g, '');
+            if (aceitaDecimal) {
+                var partes = v.split('.');
+                if (partes.length > 2) v = partes.shift() + '.' + partes.join('');
+            }
+            return v;
+        }
+
+        $(document).on('input blur', '.num-int', function() {
+            var limpo = limparNumero(this.value, false);
+            if (this.value !== limpo) this.value = limpo;
+        });
+        $(document).on('input blur', '.num-dec', function() {
+            var limpo = limparNumero(this.value, true);
+            if (this.value !== limpo) this.value = limpo;
+        });
+
+        // ========================================
+        // ERRO INLINE (substitui alert e da feedback visivel)
+        // ========================================
+        function mostrarErro(msg, $campo) {
+            $('#erro-form').html(msg).removeClass('d-none');
+            if ($campo && $campo.length) {
+                $campo.focus();
+                $('html, body').animate({ scrollTop: $('#erro-form').offset().top - 120 }, 200);
+            } else {
+                $('html, body').animate({ scrollTop: $('#erro-form').offset().top - 120 }, 200);
+            }
+        }
+        function limparErro() {
+            $('#erro-form').addClass('d-none').html('');
+        }
+        // Somente no evento 'input' (digitacao). Nao usar 'change': o datetimepicker
+        // dispara change ao selecionar e apagaria a mensagem de erro recem-exibida.
+        $(document).on('input', '#form-rastreio input', limparErro);
         
         // ========================================
         // VALIDAÇÃO: Mínimo 1 hora de antecedência
@@ -157,10 +203,9 @@ $title = (!isset($title)) ? "Preencha o formulário para registrar seu pedido de
             const minimo = getHorarioMinimo();
             
             if (dataSelecionada && dataSelecionada < minimo) {
-                alert('⚠️ ATENÇÃO!\n\nO horário da coleta precisa ter no mínimo 1 hora de antecedência.\n\nHorário mínimo permitido: ' + 
-                    minimo.toLocaleString('pt-BR', {day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'}) +
-                    '\n\nPor favor, selecione um horário válido.');
-                
+                mostrarErro('<b>Horário inválido.</b> A coleta precisa de no mínimo 1 hora de antecedência. Horário mínimo permitido: <b>' +
+                    minimo.toLocaleString('pt-BR', {day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'}) + '</b>');
+
                 if ($input) {
                     $input.val('');
                 } else {
@@ -186,10 +231,11 @@ $title = (!isset($title)) ? "Preencha o formulário para registrar seu pedido de
         $('#form-rastreio').on('submit', function(e) {
             const valor = $('#campoLimiteColeta').val();
             
+            limparErro();
+
             if (!valor) {
                 e.preventDefault();
-                alert('⚠️ ERRO!\n\nPor favor, selecione a data e hora para realizar a coleta.');
-                $('#campoLimiteColeta').focus();
+                mostrarErro('<b>Preencha a data e hora</b> para realizar a coleta.', $('#campoLimiteColeta'));
                 return false;
             }
             
@@ -198,21 +244,37 @@ $title = (!isset($title)) ? "Preencha o formulário para registrar seu pedido de
             
             if (!dataSelecionada) {
                 e.preventDefault();
-                alert('⚠️ ERRO!\n\nFormato de data/hora inválido.\n\nUse o formato: DD/MM/AAAA HH:MM');
-                $('#campoLimiteColeta').focus();
+                mostrarErro('<b>Formato de data/hora inválido.</b> Use o formato DD/MM/AAAA HH:MM.', $('#campoLimiteColeta'));
                 return false;
             }
             
             if (dataSelecionada < minimo) {
                 e.preventDefault();
-                alert('⚠️ ERRO!\n\nO horário da coleta precisa ter no mínimo 1 hora de antecedência.\n\nHorário mínimo permitido: ' + 
-                    minimo.toLocaleString('pt-BR', {day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'}) +
-                    '\n\nPor favor, selecione um horário válido.');
+                mostrarErro('<b>Horário inválido.</b> A coleta precisa de no mínimo 1 hora de antecedência. Horário mínimo permitido: <b>' +
+                    minimo.toLocaleString('pt-BR', {day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'}) + '</b>');
                 $('#campoLimiteColeta').val('');
                 $('#campoLimiteColeta').focus();
                 return false;
             }
-            
+
+            // Numericos: sanitiza e valida com mensagem visivel
+            $('.num-int').each(function() { this.value = limparNumero(this.value, false); });
+            $('.num-dec').each(function() { this.value = limparNumero(this.value, true); });
+
+            var qtd = parseInt($('#campoQuantidade').val(), 10);
+            if (!qtd || qtd <= 0) {
+                e.preventDefault();
+                mostrarErro('<b>Informe a quantidade de volumes</b> (apenas números, maior que zero).', $('#campoQuantidade'));
+                return false;
+            }
+
+            var peso = parseFloat($('#campoPeso').val());
+            if (!peso || peso <= 0) {
+                e.preventDefault();
+                mostrarErro('<b>Informe o peso em Kg</b> (apenas números, use ponto ou vírgula para decimais).', $('#campoPeso'));
+                return false;
+            }
+
             return true;
         });
     });

@@ -1,4 +1,5 @@
 <?php
+// v1.3.1 - coletar(): sanitizacao server-side dos campos numericos (default-deny)
 // v1.3.0 - trackingdest filtra na RESPOSTA pelo dominio das ocorrencias (so cargas KM)
 // https://ssw.inf.br/ajuda/
 // Backup: branch backup-v1.0.0
@@ -32,6 +33,23 @@ class Ssw
         return $this->soap("sswCotacao/index.php", "cotar", $data);
     }
 
+    // Default-deny: campos numericos passam por allowlist de caracteres.
+    // Allowlist: digitos 0-9 e (se $decimal) um unico separador decimal (virgula convertida em ponto).
+    // Qualquer outro caractere e descartado antes de ir para o SSW.
+    private function apenasNumero($valor, $decimal = false)
+    {
+        $v = str_replace(',', '.', (string) $valor);
+        $v = preg_replace($decimal ? '/[^0-9.]/' : '/[^0-9]/', '', $v);
+        if ($decimal) {
+            $partes = explode('.', $v);
+            if (count($partes) > 2) {
+                $inteiro = array_shift($partes);
+                $v = $inteiro . '.' . implode('', $partes);
+            }
+        }
+        return $v;
+    }
+
     public function coletar($data)
     {
         $dateHourObj = DateTime::createFromFormat('d/m/Y H:i', $data["limiteColeta"]);
@@ -47,17 +65,17 @@ class Ssw
             "senha" => $this->password,
             "cnpjRemetente" => str_replace("/", "", str_replace("-", "", str_replace(".", "", $data["cnpjRemetente"]))),
             "cnpjDestinatario" => str_replace("/", "", str_replace("-", "", str_replace(".", "", $data["cnpjDestinatario"]))),
-            "numeroNF" => $data["numeroNF"],
+            "numeroNF" => $this->apenasNumero($data["numeroNF"]),
             "tipoPagamento" => $data["tipoPagamento"],
             "enderecoEntrega" => $data["enderecoEntrega"],
             "cepEntrega" => str_replace("-", "", $data["cepEntrega"]),
             "solicitante" => $data["solicitante"],
             "limiteColeta" => $data["limiteColeta"],
-            "quantidade" => $data["quantidade"],
-            "peso" => $data["peso"],
+            "quantidade" => $this->apenasNumero($data["quantidade"]),
+            "peso" => $this->apenasNumero($data["peso"], true),
             "observacao" => $data["observacao"] . "\n\n" . $data["obsColeta"],
             "instrucao" => $data["instrucao"],
-            "cubagem" => $data["cubagem"],
+            "cubagem" => $this->apenasNumero($data["cubagem"], true),
             "valorMerc" => "",
             "especie" => "",
             "chaveNF" => "",
