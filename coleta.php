@@ -1,4 +1,5 @@
 <?php 
+// v1.2.1 - reenvio forcado (corrida no state file do FTP-Deploy)
 // v1.2.0 - Erros exibidos NO PROPRIO CAMPO (borda vermelha + mensagem abaixo).
 //           Removido o aviso amarelo fixo do campo de data (dava a entender que
 //           qualquer erro do form era erro de horario).
