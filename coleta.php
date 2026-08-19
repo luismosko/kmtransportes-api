@@ -1,4 +1,7 @@
 <?php 
+// v1.2.2 - erro do campo de data some sozinho ao escolher um horario valido
+//          (o datetimepicker seta o valor via .val(), que nao dispara 'input')
+//          e o valor digitado nao e mais apagado ao dar erro
 // v1.2.1 - reenvio forcado (corrida no state file do FTP-Deploy)
 // v1.2.0 - Erros exibidos NO PROPRIO CAMPO (borda vermelha + mensagem abaixo).
 //           Removido o aviso amarelo fixo do campo de data (dava a entender que
@@ -148,6 +151,11 @@ $title = (!isset($title)) ? "Preencha o formulário para registrar seu pedido de
             $('.erro-campo').remove();
             $('#form-rastreio .is-invalid').removeClass('is-invalid');
         }
+        // Limpa o erro de UM campo (usado quando o proprio campo passa a ser valido)
+        function limparErroCampo($campo) {
+            if (!$campo || !$campo.length) return;
+            $campo.removeClass('is-invalid').closest('.mb-3').find('.erro-campo').remove();
+        }
         // Somente no evento 'input' (digitacao). Nao usar 'change': o datetimepicker
         // dispara change ao selecionar e apagaria a mensagem de erro recem-exibida.
         $(document).on('input', '#form-rastreio input', function() {
@@ -210,14 +218,13 @@ $title = (!isset($title)) ? "Preencha o formulário para registrar seu pedido de
             if (dataSelecionada && dataSelecionada < minimo) {
                 mostrarErro($('#campoLimiteColeta'), 'Horário inválido: a coleta precisa de no mínimo 1 hora de antecedência. Mínimo permitido: <b>' +
                     minimo.toLocaleString('pt-BR', {day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'}) + '</b>');
-
-                if ($input) {
-                    $input.val('');
-                } else {
-                    $('#campoLimiteColeta').val('');
-                }
+                // Nao apaga o que o usuario escolheu: ele so precisa ajustar a hora
                 return false;
             }
+
+            // Horario valido: remove a mensagem sem depender do evento 'input'
+            // (o datetimepicker preenche o campo via .val(), que nao dispara 'input')
+            limparErroCampo($('#campoLimiteColeta'));
             return true;
         }
         
@@ -228,7 +235,7 @@ $title = (!isset($title)) ? "Preencha o formulário para registrar seu pedido de
         setInterval(configurarDateTimePicker, 60000);
         
         // Validação ao mudar o campo
-        $('#campoLimiteColeta').on('change blur', function() {
+        $('#campoLimiteColeta').on('change blur keyup', function() {
             validarHorarioSelecionado($(this));
         });
         
@@ -257,7 +264,6 @@ $title = (!isset($title)) ? "Preencha o formulário para registrar seu pedido de
                 e.preventDefault();
                 mostrarErro($('#campoLimiteColeta'), 'Horário inválido: a coleta precisa de no mínimo 1 hora de antecedência. Mínimo permitido: <b>' +
                     minimo.toLocaleString('pt-BR', {day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'}) + '</b>');
-                $('#campoLimiteColeta').val('');
                 return false;
             }
 
